@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import com.jakewharton.rxbinding2.view.RxView
 import io.reactivex.Observable
+import io.reactivex.ObservableTransformer
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.exceptions.OnErrorNotImplementedException
@@ -27,21 +28,28 @@ class MainActivity : AppCompatActivity() {
         manageState()
     }
 
-    // uncomment line with 38, and comment 37th
+    // uncomment line with 40, and comment 39th
     // to see when happens if api call failed
+    private fun transformer(): ObservableTransformer<SubmitEvent, SubmitUiModel> {
+        return ObservableTransformer { eventObservable ->
+            eventObservable
+                .flatMap { event ->
+                    service.setName(event.name)
+                        .subscribeOn(Schedulers.io())
+//                        .andThen(Observable.just(Unit))
+                        .andThen(Observable.error<Throwable>(Exception("Api error")))
+                        .map { SubmitUiModel.success() }
+                        .onErrorReturn { SubmitUiModel.error(it.message.orEmpty()) }
+                        .observeOn(AndroidSchedulers.mainThread()) // why Jake put that here ?
+                        .startWith(SubmitUiModel.inProgress())
+                }
+        }
+    }
+
     private fun manageState() {
         RxView.clicks(submit_button)
             .map { SubmitEvent(edit_text.text.toString()) }
-            .flatMap { event ->
-                service.setName(event.name)
-                    .subscribeOn(Schedulers.io())
-                    .andThen(Observable.just(Unit))
-//                    .andThen(Observable.error<Throwable>(Exception("Api error")))
-                    .map { SubmitUiModel.success() }
-                    .onErrorReturn { SubmitUiModel.error(it.message.orEmpty()) }
-                    .observeOn(AndroidSchedulers.mainThread()) // why Jake put that here ?
-                    .startWith(SubmitUiModel.inProgress())
-            }
+            .compose(transformer())
             .subscribe(
                 { model ->
                     submit_button.isEnabled = !model.inProgress
