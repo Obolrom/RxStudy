@@ -12,5 +12,7 @@ data class SubmitUiModel(
         fun success() = SubmitUiModel(inProgress = false, success = true, errorMessage = "")
 
         fun error(message: String) = SubmitUiModel(inProgress = false, success = false, errorMessage = message)
+
+        fun idle() = SubmitUiModel(inProgress = false, success = false, errorMessage = "")
     }
 }

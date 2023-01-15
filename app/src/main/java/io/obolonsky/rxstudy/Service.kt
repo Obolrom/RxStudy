@@ -33,4 +33,8 @@ class Service : UserManager {
             .ignoreElement()
             .delay(2, TimeUnit.SECONDS)
     }
+
+    fun checkName(): Completable {
+        return Completable.complete()
+    }
 }
