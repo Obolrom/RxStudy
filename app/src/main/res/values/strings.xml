@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">RxStudy</string>
+    <string name="jane_doe">Jane Doe</string>
+    <string name="submit">Submit</string>
 </resources>
