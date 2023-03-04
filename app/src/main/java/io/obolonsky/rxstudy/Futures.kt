@@ -57,14 +57,14 @@ data class Ticket(
 
 fun findByIdAsync(id: Int): CompletableFuture<User> {
     return CompletableFuture.supplyAsync {
-        Thread.sleep(100)
+        Thread.sleep(1000)
         users[id]!!.also { println("findByIdAsync $it") }
     }
 }
 
 fun locateAsync(): CompletableFuture<GeoLocation> {
     return CompletableFuture.supplyAsync {
-        Thread.sleep(120)
+        Thread.sleep(2000)
         GeoLocation("Canada").also { println("locateAsync $it") }
     }
 }
