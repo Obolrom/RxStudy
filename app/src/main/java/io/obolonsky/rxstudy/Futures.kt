@@ -1,11 +1,10 @@
+@file:RequiresApi(Build.VERSION_CODES.N)
 package io.obolonsky.rxstudy
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import java.util.concurrent.ExecutorCompletionService
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.CompletableFuture
+import java.util.function.Function
 
 val users = mapOf(
     1 to User("Roman"),
@@ -15,20 +14,26 @@ val users = mapOf(
 
 val agencies = listOf(
     object : TravelAgency {
-        override fun search(user: User, location: GeoLocation): Flight {
-            return Flight(user, start = "Turkey", destination = location.country)
+        override fun searchAsync(user: User, location: GeoLocation): CompletableFuture<Flight> {
+            return CompletableFuture.supplyAsync {
+                Flight(user, start = "Turkey", destination = location.country)
+            }
         }
     },
     object : TravelAgency {
-        override fun search(user: User, location: GeoLocation): Flight {
-            return Flight(user, start = "Ukraine", destination = location.country)
+        override fun searchAsync(user: User, location: GeoLocation): CompletableFuture<Flight> {
+            return CompletableFuture.supplyAsync {
+                Flight(user, start = "Ukraine", destination = location.country)
+            }
         }
     },
     object : TravelAgency {
-        override fun search(user: User, location: GeoLocation): Flight {
-            return Flight(user, start = "Poland", destination = location.country)
+        override fun searchAsync(user: User, location: GeoLocation): CompletableFuture<Flight> {
+            return CompletableFuture.supplyAsync {
+                Flight(user, start = "Poland", destination = location.country)
+            }
         }
-    }
+    },
 )
 
 data class User(
@@ -50,44 +55,51 @@ data class Ticket(
     val flight: Flight,
 )
 
-fun findById(id: Int): User {
-    return users[id]!!.also { println("findById $it") }
+fun findByIdAsync(id: Int): CompletableFuture<User> {
+    return CompletableFuture.supplyAsync {
+        Thread.sleep(100)
+        users[id]!!.also { println("findByIdAsync $it") }
+    }
 }
 
-fun locate(): GeoLocation {
-    return GeoLocation("Canada").also { println("locate $it") }
+fun locateAsync(): CompletableFuture<GeoLocation> {
+    return CompletableFuture.supplyAsync {
+        Thread.sleep(120)
+        GeoLocation("Canada").also { println("locateAsync $it") }
+    }
 }
 
-fun book(flight: Flight): Ticket {
-    return Ticket(110, flight)
+fun bookAsync(flight: Flight): CompletableFuture<Ticket> {
+    return CompletableFuture.supplyAsync {
+        Ticket(110, flight).also { println("bookAsync $it") }
+    }
 }
 
 interface TravelAgency {
 
-    fun search(user: User, location: GeoLocation): Flight
+    fun searchAsync(user: User, location: GeoLocation): CompletableFuture<Flight>
 }
 
 
-@RequiresApi(Build.VERSION_CODES.N)
 fun futuresDemo() {
 
-    val pool = Executors.newFixedThreadPool(10)
+    val userFuture: CompletableFuture<User> = findByIdAsync(2)
+    val locationFuture: CompletableFuture<GeoLocation> = locateAsync()
 
-    val user: User = findById(2)
-    val location: GeoLocation = locate()
-    val ecs: ExecutorCompletionService<Flight> = ExecutorCompletionService(pool)
-
-    agencies
-        .forEach { agency ->
-            ecs.submit {
-                agency.search(user, location)
-                    .also { println("search $it") }
-            }
+    userFuture
+        .thenCombine(locationFuture) { user, location ->
+            agencies
+                .stream()
+                .map { agency -> agency.searchAsync(user, location) }
+                .reduce { f1: CompletableFuture<Flight>, f2: CompletableFuture<Flight> ->
+                    f1.applyToEither(f2, Function.identity())
+                }
+                .get()
         }
-
-    val firstFlight: Future<Flight> = ecs.poll(5, TimeUnit.SECONDS)
-    val flight = firstFlight.get()
-    println("flight $flight")
-    val ticket = book(flight)
-    println("ticket $ticket")
+        .thenCompose(Function.identity())
+        .thenCompose(::bookAsync)
+        .thenApply { ticket ->
+            println("ticket $ticket")
+            ticket
+        }
 }
