@@ -8,7 +8,7 @@ import androidx.annotation.RequiresApi
 @RequiresApi(Build.VERSION_CODES.N)
 fun main() {
 
-    completableFutureInteroperabilityDemo()
+    fromObservableToCompletableFutureDemo()
 
     Thread.sleep(10_000)
 }
